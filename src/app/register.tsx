@@ -1,21 +1,59 @@
 import { Button } from "@/components/button";
 import { Input } from "@/components/input";
+import { api } from "@/server/api";
 import { colors } from "@/styles/colors";
 import { FontAwesome6, MaterialIcons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import { Alert, Image, StatusBar, View } from "react-native";
+import axios from 'axios'
+
+interface RegisterResponse {
+  attendeeId: number;
+}
+
 
 export default function Register() {
   const [name, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  const EVENT_ID = "9e9bd979-9d10-4915-b339-3786b1634f33"
 
-  function handleRegister() {
+  async function handleRegister() {
     // Implement your register logic here
+    try{
     if (!name.trim() || !email.trim()) {
       return Alert.alert("Inscrição", "Nome e e-mail são obrigatórios");
     }
-    router.push("/ticket");
+    setIsLoading(true);
+
+    const registerResponse = await api.post<RegisterResponse>(`/events/${EVENT_ID}/attendees`, {name, email})
+
+    if(registerResponse.data.attendeeId){
+      Alert.alert("Inscrição", "Inscrição realizada com sucesso", [
+        {
+          text: "Ok",
+          onPress: () => router.push("/ticket")
+        },
+        {
+          text: "Cancelar",
+          onPress: () => setIsLoading(false)
+        }
+      ]);
+    }
+
+    
+    }catch(error){
+      console.log(error)
+      setIsLoading(false)
+      if(axios.isAxiosError(error)){
+        if(String(error.response?.data.message).includes("already registered")){
+         return Alert.alert("Inscrição", "E-mail já cadastrado");
+        }
+      }
+      Alert.alert("Inscrição", "Erro ao realizar inscrição");
+    } 
   }
 
   return (
@@ -52,7 +90,7 @@ export default function Register() {
             onChangeText={setEmail}
           />
         </Input>
-        <Button title="Realizar inscrição" onPress={handleRegister} />
+        <Button title="Realizar inscrição" onPress={handleRegister} isLoading={isLoading} />
         <Link
           href="/"
           className="text-gray-100 text-base font-bold text-center mt-8"
